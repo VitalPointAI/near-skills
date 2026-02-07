@@ -1,0 +1,22 @@
+{
+  "webhooks": {
+    "default": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+    "transfers": "https://discord.com/api/webhooks/YOUR_TRANSFERS_CHANNEL_WEBHOOK",
+    "staking": "https://discord.com/api/webhooks/YOUR_STAKING_CHANNEL_WEBHOOK"
+  },
+  "thresholds": {
+    "large_transfer": "100",
+    "staking_event": "10"
+  },
+  "accounts": [
+    "yourwallet.near",
+    "team-treasury.near"
+  ],
+  "alerts": {
+    "transfers": true,
+    "staking": true,
+    "contracts": true,
+    "activity": true
+  },
+  "rpc": "https://rpc.mainnet.near.org"
+}

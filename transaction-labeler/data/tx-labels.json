@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "transactions": {
+    "test123": {
+      "hash": "test123",
+      "category": "unknown",
+      "labeledAt": "2026-02-07T17:02:37.041Z",
+      "label": "Test transaction",
+      "notes": "",
+      "autoLabeled": false
+    }
+  },
+  "categories": {
+    "transfer": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "staking": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "defi": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "nft": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "contract_deploy": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "contract_call": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "account": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "bridge": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "governance": {
+      "count": 0,
+      "totalNear": "0"
+    },
+    "unknown": {
+      "count": 0,
+      "totalNear": "0"
+    }
+  },
+  "customLabels": [
+    "Test transaction"
+  ]
+}

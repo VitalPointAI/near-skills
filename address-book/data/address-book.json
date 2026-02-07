@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "addresses": {
+    "test.near": {
+      "nickname": "Test Account",
+      "category": "unknown",
+      "tags": [],
+      "notes": "",
+      "addedAt": "2026-02-07T17:02:30.928Z",
+      "lastUsed": null
+    }
+  },
+  "categories": [
+    "friends",
+    "exchanges",
+    "contracts",
+    "defi",
+    "nft",
+    "dao",
+    "unknown"
+  ],
+  "recentLookups": []
+}
