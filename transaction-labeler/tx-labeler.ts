@@ -237,26 +237,116 @@ function labelTransaction(txHash: string, label: string, options: ParsedArgs): v
   if (entry.notes) console.log(`   Notes: ${entry.notes}`);
 }
 
-// Auto-categorize transactions (mock)
-function categorizeTransactions(account: string, _options: ParsedArgs): void {
+// Fetch and auto-categorize transactions
+async function categorizeTransactions(account: string, options: ParsedArgs): Promise<void> {
   console.log(`🔍 Analyzing transactions for ${account}...`);
-  console.log('');
-  console.log('💡 To implement full categorization, integrate with NEAR RPC:');
-  console.log('   - Fetch transactions via nearblocks.io API or NEAR RPC');
-  console.log('   - Parse actions and receiver accounts');
-  console.log('   - Apply detection rules');
-  console.log('');
-  console.log('Sample categorization output:');
-  console.log('');
-  console.log('  📊 Category Summary:');
-  console.log('  ─────────────────────');
-  console.log('  Transfer:     23 txs (456.7 NEAR)');
-  console.log('  Staking:      12 txs (1,000 NEAR)');
-  console.log('  DeFi:         45 txs (234.5 NEAR)');
-  console.log('  NFT:           8 txs (12.3 NEAR)');
-  console.log('  Contract:     15 txs (0.5 NEAR)');
-  console.log('');
-  console.log('Use near_tx_label to add custom labels to specific transactions.');
+  
+  const limit = parseInt(options.limit as string) || 100;
+  const save = options.save === true || options.save === 'true';
+  
+  try {
+    // Fetch transactions from NearBlocks API
+    const response = await fetch(
+      `https://api.nearblocks.io/v1/account/${account}/txns?per_page=${Math.min(limit, 25)}&order=desc`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.statusText}`);
+    }
+    
+    const data = await response.json() as { txns: Array<{
+      transaction_hash: string;
+      block_timestamp: string;
+      signer_account_id: string;
+      receiver_account_id: string;
+      actions: Array<{ action: string; method: string | null }>;
+      actions_agg: { deposit: number };
+      outcomes: { status: boolean };
+    }> };
+    
+    if (!data.txns || data.txns.length === 0) {
+      console.log('📭 No transactions found for this account');
+      return;
+    }
+    
+    console.log(`📥 Fetched ${data.txns.length} transactions\n`);
+    
+    const db = loadLabels();
+    const categoryStats: Record<string, { count: number; totalYocto: bigint }> = {};
+    
+    // Categorize each transaction
+    for (const tx of data.txns) {
+      const category = detectCategory(tx.receiver_account_id, tx.actions?.map(a => ({ 
+        kind: a.action, 
+        method_name: a.method || undefined 
+      })));
+      
+      const subcategory = tx.actions?.[0]?.method 
+        ? detectSubcategory(tx.actions[0].method)
+        : null;
+      
+      // Update stats
+      if (!categoryStats[category]) {
+        categoryStats[category] = { count: 0, totalYocto: 0n };
+      }
+      categoryStats[category].count++;
+      categoryStats[category].totalYocto += BigInt(tx.actions_agg?.deposit || 0);
+      
+      // Save to database if requested
+      if (save && !db.transactions[tx.transaction_hash]) {
+        db.transactions[tx.transaction_hash] = {
+          hash: tx.transaction_hash,
+          category,
+          subcategory: subcategory || undefined,
+          from: tx.signer_account_id,
+          to: tx.receiver_account_id,
+          amount: (Number(tx.actions_agg?.deposit || 0) / 1e24).toFixed(6),
+          timestamp: new Date(Number(tx.block_timestamp) / 1e6).toISOString(),
+          autoLabeled: true,
+          labeledAt: new Date().toISOString()
+        };
+      }
+    }
+    
+    // Print summary
+    console.log('📊 Category Summary:');
+    console.log('─────────────────────');
+    
+    const sortedCategories = Object.entries(categoryStats)
+      .sort((a, b) => b[1].count - a[1].count);
+    
+    for (const [cat, stats] of sortedCategories) {
+      const nearAmount = (Number(stats.totalYocto) / 1e24).toFixed(2);
+      const catName = cat.charAt(0).toUpperCase() + cat.slice(1).replace('_', ' ');
+      console.log(`  ${catName.padEnd(15)} ${String(stats.count).padStart(4)} txs (${nearAmount} NEAR)`);
+    }
+    
+    console.log('');
+    
+    if (save) {
+      // Update database category stats
+      for (const [cat, stats] of Object.entries(categoryStats)) {
+        if (!db.categories[cat]) {
+          db.categories[cat] = { count: 0, totalNear: '0' };
+        }
+        db.categories[cat].count += stats.count;
+        const existingNear = parseFloat(db.categories[cat].totalNear) || 0;
+        const newNear = Number(stats.totalYocto) / 1e24;
+        db.categories[cat].totalNear = (existingNear + newNear).toFixed(6);
+      }
+      
+      saveLabels(db);
+      console.log(`💾 Saved ${data.txns.length} transactions to database`);
+    } else {
+      console.log('💡 Use --save to persist categorization to local database');
+    }
+    
+    console.log('Use near_tx_label to add custom labels to specific transactions.');
+    
+  } catch (error) {
+    console.error('❌ Error fetching transactions:', error);
+    process.exit(1);
+  }
 }
 
 // Bulk label transactions
@@ -397,10 +487,13 @@ function main(): void {
       
     case 'categorize':
       if (args._.length < 2) {
-        console.log('Usage: near_tx_categorize <account> [--from <date>] [--to <date>] [--limit <n>]');
+        console.log('Usage: near_tx_categorize <account> [--limit <n>] [--save]');
         process.exit(1);
       }
-      categorizeTransactions(args._[1], args);
+      categorizeTransactions(args._[1], args).catch(err => {
+        console.error('Error:', err);
+        process.exit(1);
+      });
       break;
       
     case 'bulk-label':
